@@ -1,0 +1,7 @@
+const ROLES = Object.freeze({
+  ADMINISTRADOR: 'ADMINISTRADOR',
+  RECEPCIONISTA: 'RECEPCIONISTA',
+  MECANICO: 'MECANICO',
+});
+
+module.exports = { ROLES, ROLES_VALIDOS: Object.values(ROLES) };

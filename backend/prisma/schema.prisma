@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rol {
+  ADMINISTRADOR
+  RECEPCIONISTA
+  MECANICO
+}
+
+// RF-001 / RF-002
+model Usuario {
+  id           Int      @id @default(autoincrement())
+  nombre       String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  rol          Rol
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  accesos             BitacoraAcceso[]
+  clientesRegistrados Cliente[]
+
+  @@map("usuarios")
+}
+
+// RNF-007: 100 % de los inicios de sesión (exitosos y fallidos)
+model BitacoraAcceso {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int?     @map("usuario_id")
+  email     String
+  exitoso   Boolean
+  motivo    String
+  ip        String?
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  usuario Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@index([createdAt])
+  @@index([usuarioId])
+  @@map("bitacora_accesos")
+}
+
+// RF-003 / RD-001
+model Cliente {
+  id                       Int      @id @default(autoincrement())
+  nombre                   String
+  telefono                 String
+  email                    String
+  domicilio                String?
+  consentimientoPrivacidad Boolean  @map("consentimiento_privacidad")
+  fechaConsentimiento      DateTime @map("fecha_consentimiento")
+  registradoPorId          Int      @map("registrado_por_id")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+
+  registradoPor Usuario    @relation(fields: [registradoPorId], references: [id])
+  vehiculos     Vehiculo[]
+
+  @@index([nombre])
+  @@map("clientes")
+}
+
+// RF-003: la placa y el VIN no pueden repetirse
+model Vehiculo {
+  id        Int      @id @default(autoincrement())
+  clienteId Int      @map("cliente_id")
+  placa     String   @unique
+  vin       String   @unique
+  marca     String
+  modelo    String
+  anio      Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  cliente Cliente @relation(fields: [clienteId], references: [id])
+
+  @@index([clienteId])
+  @@map("vehiculos")
+}
