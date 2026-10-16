@@ -26,11 +26,14 @@ model Usuario {
 
   accesos             BitacoraAcceso[]
   clientesRegistrados Cliente[]
+  ordenes             OrdenReparacion[]
+  ordenesAsignadas    OrdenReparacion[] @relation("MecanicoAsignado")
+  movimientosRepuestos MovimientoRepuesto[]
 
   @@map("usuarios")
 }
 
-// RNF-007: 100 % de los inicios de sesión (exitosos y fallidos)
+// RNF-007: 100 % de los inicios de sesiÃƒÆ’Ã‚Â³n (exitosos y fallidos)
 model BitacoraAcceso {
   id        Int      @id @default(autoincrement())
   usuarioId Int?     @map("usuario_id")
@@ -63,6 +66,7 @@ model Cliente {
 
   registradoPor Usuario    @relation(fields: [registradoPorId], references: [id])
   vehiculos     Vehiculo[]
+  ordenes       OrdenReparacion[]
 
   @@index([nombre])
   @@map("clientes")
@@ -81,7 +85,125 @@ model Vehiculo {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   cliente Cliente @relation(fields: [clienteId], references: [id])
+  ordenes OrdenReparacion[]
 
   @@index([clienteId])
   @@map("vehiculos")
 }
+enum EstadoOrden {
+  PENDIENTE
+  RECIBIDO
+  ASIGNADO
+  EN_PROCESO
+  EN_ESPERA_REPUESTOS
+  LISTO
+  ENTREGADO
+  CANCELADO
+}
+
+enum TipoMovimientoRepuesto {
+  ENTRADA
+  SALIDA
+  AJUSTE
+}
+
+
+
+
+model OrdenReparacion {
+  id             Int         @id @default(autoincrement())
+  folio          String      @unique
+  clienteId      Int         @map("cliente_id")
+  vehiculoId     Int         @map("vehiculo_id")
+  mecanicoId     Int?        @map("mecanico_id")
+  estado         EstadoOrden @default(PENDIENTE)
+  descripcion    String?
+  diagnostico    String?
+  solucion       String?
+  observaciones  String?
+  recibidoPorId  Int         @map("recibido_por_id")
+  km             Int?
+  fechaRecepcion DateTime    @default(now()) @map("fecha_recepcion")
+  fechaAsignacion DateTime?   @map("fecha_asignacion")
+  fechaInicio    DateTime?   @map("fecha_inicio")
+  fechaFinalizacion DateTime? @map("fecha_finalizacion")
+  fechaEntrega   DateTime?   @map("fecha_entrega")
+  costoManoObra  Decimal     @default(0) @map("costo_mano_obra") @db.Decimal(10, 2)
+  costoRepuestos Decimal     @default(0) @map("costo_repuestos") @db.Decimal(10, 2)
+  total          Decimal     @default(0) @map("total") @db.Decimal(10, 2)
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  cliente      Cliente @relation(fields: [clienteId], references: [id])
+  vehiculo     Vehiculo @relation(fields: [vehiculoId], references: [id])
+  mecanico     Usuario? @relation("MecanicoAsignado", fields: [mecanicoId], references: [id])
+  recibidoPor  Usuario  @relation(fields: [recibidoPorId], references: [id])
+  repuestos    OrdenRepuesto[]
+  movimientos  MovimientoRepuesto[]
+
+  @@index([clienteId])
+  @@index([vehiculoId])
+  @@index([mecanicoId])
+  @@index([estado])
+  @@map("ordenes_reparacion")
+}
+
+model Repuesto {
+  id           Int      @id @default(autoincrement())
+  codigo       String   @unique
+  nombre       String
+  descripcion  String?
+  stock        Int      @default(0)
+  stockMinimo  Int      @default(0) @map("stock_minimo")
+  precioCompra Decimal  @default(0) @map("precio_compra") @db.Decimal(10, 2)
+  precioVenta  Decimal  @default(0) @map("precio_venta") @db.Decimal(10, 2)
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  ordenes      OrdenRepuesto[]
+  movimientos  MovimientoRepuesto[]
+
+  @@index([codigo])
+  @@map("repuestos")
+}
+
+model OrdenRepuesto {
+  id        Int     @id @default(autoincrement())
+  ordenId   Int     @map("orden_id")
+  repuestoId Int    @map("repuesto_id")
+  cantidad  Int
+  precio    Decimal @db.Decimal(10, 2)
+  subtotal  Decimal @db.Decimal(10, 2)
+
+  orden    OrdenReparacion @relation(fields: [ordenId], references: [id])
+  repuesto Repuesto        @relation(fields: [repuestoId], references: [id])
+
+  @@unique([ordenId, repuestoId])
+  @@index([ordenId])
+  @@index([repuestoId])
+  @@map("ordenes_repuestos")
+}
+
+model MovimientoRepuesto {
+  id          Int                @id @default(autoincrement())
+  repuestoId  Int                @map("repuesto_id")
+  ordenId     Int?               @map("orden_id")
+  tipo        TipoMovimientoRepuesto
+  cantidad    Int
+  referencia  String?
+  motivo      String?
+  usuarioId   Int                @map("usuario_id")
+  createdAt   DateTime           @default(now()) @map("created_at")
+
+  repuesto    Repuesto          @relation(fields: [repuestoId], references: [id])
+  orden       OrdenReparacion?  @relation(fields: [ordenId], references: [id])
+  usuario     Usuario            @relation(fields: [usuarioId], references: [id])
+
+  @@index([repuestoId])
+  @@index([ordenId])
+  @@index([createdAt])
+  @@map("movimientos_repuestos")
+}
+
+
